@@ -3,9 +3,14 @@ import datetime
 import pickle
 import os
 # todo: test - os clean
-# logging.basicConfig(filename='metro.log',level=logging.DEBUG)
-logging.basicConfig(level=logging.DEBUG)
-
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="{asctime} -{name:<10} -{levelname:<16} -{message}", style="{",
+    handlers=[
+        logging.FileHandler("metro.log"),
+        logging.StreamHandler()
+  ]
+)
 
 class MetroCard:
     COST = 10
@@ -176,6 +181,9 @@ def main():
     except ValueError:
         print("----- Invalid Input -----")
         menu_func()
+    except FileNotFoundError:
+        print("***** You must recieve a card first *****")
+        main()
 
 def menu_func():
     while True:
