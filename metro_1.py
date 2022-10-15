@@ -1,26 +1,29 @@
 import logging
 import datetime
 import pickle
+from bank import *
 import os
 
-# todo: test - os clean
+# todo: test - os clean - trip file
 
 logging.basicConfig(
-    level=logging.DEBUG, # set logging level debug to check functions work
+    level=logging.DEBUG,  # set logging level debug to check functions work
     format="{asctime} -{name:<10} -{levelname:<16} -{message}", style="{",
     handlers=[
-        logging.FileHandler("metro.log"), #log file
+        logging.FileHandler("metro.log"),  # log file
         logging.StreamHandler()
-  ]
+    ]
 )
+
 
 class MetroCard:
     COST = 10
-    def __init__(self, card_no:int, value:float):
+
+    def __init__(self, card_no: int, value: float):
         self.value = value
-        if self.check_value(MetroCard.COST): # check that initilize value isn`t negative or under one trip cost
+        if self.check_value(MetroCard.COST):  # check that initilize value isn`t negative or under one trip cost
             self.num = card_no
-            self.save_card() #saving object info in file
+            self.save_card()  # saving object info in file
             logging.info(f"***** CARD {self} Exported *****")
         else:
             logging.critical("----- you must have atleast 10 values -----")
@@ -40,7 +43,6 @@ class MetroCard:
                     yield pickle.load(f)
                 except EOFError:
                     break
-
 
     def update_info(self):
         """
@@ -72,16 +74,17 @@ class MetroCard:
         """
         if self.value - amount >= 0:
             logging.debug("----- valid amount -----")
-            return True # FOR TEST
-        return False # FOR TEST
+            return True  # FOR TEST
+        return False  # FOR TEST
 
     def trip_func(self):
-        start_time = datetime.datetime.now().strftime("%H:%M:%S") # start trip time
+        start_time = datetime.datetime.now().strftime("%H:%M:%S")  # start trip time
         if self.check_value(MetroCard.COST):
             self.value -= MetroCard.COST
             self.update_info()
-            end_time = datetime.datetime.now().strftime("%H:%M:%S") # end trip time
-            logging.info(f"***** TRIP DONE start:{start_time} * end:{end_time} * cost => {MetroCard.COST} * remaining value => {self.value} *****")
+            end_time = datetime.datetime.now().strftime("%H:%M:%S")  # end trip time
+            logging.info(
+                f"***** TRIP DONE start:{start_time} * end:{end_time} * cost => {MetroCard.COST} * remaining value => {self.value} *****")
             # return "Done" # FOR TEST
         else:
             logging.critical("----- you don`t have enough value -----")
@@ -91,16 +94,16 @@ class MetroCard:
         self.value += value
         self.update_info()
         logging.info(f"CARD {self}")
-        return self.value # FOR TEST
+        return self.value  # FOR TEST
 
     def __repr__(self):
         return f"-{self.num}- value:{self.value}"
 
 
 class OneTrip(MetroCard):
+
     def __init__(self, card_no, value=10):
-        self.num = card_no
-        self.value = value
+        super().__init__(card_no, value)
 
     def trip_func(self):
         """
@@ -117,10 +120,11 @@ class OneTrip(MetroCard):
     def charge_value(self, value):
         logging.critical("----- one trip card dont have charge value option -----")
 
+
 # todo: type anno for child class?
 class TimeCredit(MetroCard):
 
-    def __init__(self, card_no:int, value:float, time_op:int):
+    def __init__(self, card_no: int, value: float, time_op: int):
         self.time = TimeCredit.card_time_func(time_op)
         super().__init__(card_no, value)
 
@@ -139,13 +143,11 @@ class TimeCredit(MetroCard):
         elif time_op == 3:
             return today + datetime.timedelta(days=30)
 
-
-
     def trip_func(self):
         if self.check_time():
             super().trip_func()
             today = datetime.date.today()
-            r_days = self.time - today # get remaining days of the card
+            r_days = self.time - today  # get remaining days of the card
             logging.info(f"----- {r_days.days} Days Remaining -----")
 
     def check_time(self):
@@ -153,12 +155,12 @@ class TimeCredit(MetroCard):
         check card time
         """
         today = datetime.date.today()
-        if self.time >= today:
-            return True # FOR TEST
+        if self.time > today:
+            return True  # FOR TEST
         else:
             logging.critical(f"----- CARD -{self.num}- Time EXPIRED -----")
-            self.value = False # because the card is expired and doesn`t have charge option in menu (L 245)
-            return False # FOR TEST
+            self.value = False  # because the card is expired and doesn`t have charge option in menu (L 245)
+            return False  # FOR TEST
 
     def __repr__(self):
         return f"-{self.num}- val:{self.value} expire:{self.time}"
@@ -168,11 +170,12 @@ class Credit(MetroCard):
     pass
 
 
-num = 101 # todo: generate number
+num = 101  # todo: generate number
 def card_number_func():
     global num
     num += 1
     return num
+
 
 menu = """
 1- RECEIVE Card
@@ -190,20 +193,24 @@ plan = """
 3- one month
 """
 
-def export_card():
-    card_type = int(input(f"{receive_menu}\nChoose card ~> "))
-    if card_type == 1: # one trip card
-        num = card_number_func() # generate card number
-        card = OneTrip(card_no=num) # creating card
 
-    elif card_type == 2: # time credit card
+def export_card(account):
+    card_type = int(input(f"{receive_menu}\nChoose card ~> "))
+    if card_type == 1:  # one trip card
+        account.withdrawal(MetroCard.COST)
+        num = card_number_func()  # generate card number
+        card = OneTrip(card_no=num)  # creating card
+
+    elif card_type == 2:  # time credit card
         value = int(input("Enter value => "))
         time_op = int(input(f"TODAY : {datetime.date.today()}{plan}\nchoose plan => "))
-        num = card_number_func() # generate card number
+        account.withdrawal(value)
+        num = card_number_func()  # generate card number
         card = TimeCredit(card_no=num, value=value, time_op=time_op)
 
     elif card_type == 3:
         value = int(input("enter value => "))
+        account.withdrawal(value)
         num = card_number_func()
         card = Credit(num, value)
 
@@ -211,21 +218,21 @@ def export_card():
         raise ValueError
 
 
-def main():
+def main(account):
     print("***** WELCOME *****")
     try:
-        menu_func()
+        menu_func(account)
     except (ValueError, FileNotFoundError):
         print("----- Invalid Input -----")
-        main()
+        main(account)
 
 
-def menu_func():
+def menu_func(account):
     while True:
         menu_opt = int(input(f"{menu}\nEnter Option ~> "))
         if menu_opt == 1:
             try:
-                export_card()
+                export_card(account)
             except ValueError:
                 print("----- Invalid Input -----")
             finally:
@@ -246,6 +253,7 @@ def menu_func():
                             ans = input("You want to charge your card? y / n\n")
                             if ans == "y":
                                 new_val = (int(input(f"{c}\nHow many trips ~>"))) * 10
+                                account.withdrawal(new_val)
                                 c.charge_value(new_val)
                             break
                 else:
@@ -262,4 +270,5 @@ def menu_func():
 
         else:
             raise ValueError
+
 # main()
